@@ -55,8 +55,15 @@ class DatabaseManager:
             finally:
                 conn.close()
 
-    def get_schema_version(self, conn: sqlite3.Connection) -> int:
+    def get_schema_version(self, conn: sqlite3.Connection | None = None) -> int:
         """Get the current schema version from the database."""
+        if conn is None:
+            with self._lock:
+                c = self._get_connection()
+                try:
+                    return self.get_schema_version(c)
+                finally:
+                    c.close()
         row = conn.execute("SELECT MAX(version) as max_v FROM schema_migrations").fetchone()
         return row['max_v'] if row and row['max_v'] is not None else 0
 
