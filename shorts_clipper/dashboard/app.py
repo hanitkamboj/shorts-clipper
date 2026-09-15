@@ -13,8 +13,17 @@ except ImportError:
 
 from .components.home import build_home_tab
 from .components.sources import build_sources_tab
+from .components.clips import build_clips_tab
+from .components.scores import build_scores_tab
+from .components.captions_ui import build_captions_tab
+from .components.thumbnails_ui import build_thumbnails_tab
+from .components.seo_ui import build_seo_tab
+from .components.upload_ui import build_upload_tab
+from .components.scheduler_ui import build_scheduler_tab
+from .components.published_ui import build_published_tab
 from .components.settings_ui import build_settings_tab
 from .components.providers import build_providers_tab
+from .components.logs_ui import build_logs_tab
 
 
 def get_free_port(start_port: int = 7860, max_port: int = 7900) -> int:
@@ -26,47 +35,37 @@ def get_free_port(start_port: int = 7860, max_port: int = 7900) -> int:
                 return port
     return start_port
 
+
 def create_app():
-    """Create the Gradio Blocks app with all tabs."""
+    """Create the Gradio Blocks app with all full-featured interactive tabs."""
     if gr is None:
         logger.error("Cannot create app: Gradio is not installed.")
         return None
         
     theme = gr.themes.Default(primary_hue="blue", secondary_hue="slate")
     
-    with gr.Blocks(title="Shorts Clipper AI", theme=theme) as app:
-        gr.Markdown("# 🎬 Shorts Clipper AI Factory")
+    with gr.Blocks(title="AI Shorts Factory", theme=theme) as app:
+        gr.Markdown("# 🎬 AI Shorts Factory Studio")
         
         components = {}
         
+        # Mount all 13 interactive studio tabs
         components.update(build_home_tab())
         components.update(build_sources_tab())
-        
-        # Placeholders
-        with gr.Tab("🎬 Clips"):
-            gr.Markdown("### Clip Review (Coming Soon)")
-        with gr.Tab("🤖 AI Scores"):
-            gr.Markdown("### AI Scoring Details (Coming Soon)")
-        with gr.Tab("📝 Captions"):
-            gr.Markdown("### Caption Style Selection (Coming Soon)")
-        with gr.Tab("🖼️ Thumbnails"):
-            gr.Markdown("### Thumbnail Review (Coming Soon)")
-        with gr.Tab("🔍 SEO"):
-            gr.Markdown("### SEO Scores and Metadata (Coming Soon)")
-        with gr.Tab("📤 Upload Queue"):
-            gr.Markdown("### Upload Management (Coming Soon)")
-        with gr.Tab("📅 Scheduler"):
-            gr.Markdown("### Scheduling (Coming Soon)")
-        with gr.Tab("✅ Published"):
-            gr.Markdown("### Published Clips (Coming Soon)")
-            
+        components.update(build_clips_tab())
+        components.update(build_scores_tab())
+        components.update(build_captions_tab())
+        components.update(build_thumbnails_tab())
+        components.update(build_seo_tab())
+        components.update(build_upload_tab())
+        components.update(build_scheduler_tab())
+        components.update(build_published_tab())
         components.update(build_settings_tab())
         components.update(build_providers_tab())
-        
-        with gr.Tab("📊 Logs"):
-            gr.Markdown("### Structured Logs Viewer (Coming Soon)")
+        components.update(build_logs_tab())
             
     return app
+
 
 def launch_dashboard(share: bool = False, port: int = 7860):
     """Launch the dashboard, handling port conflicts and share gracefully."""
@@ -77,12 +76,12 @@ def launch_dashboard(share: bool = False, port: int = 7860):
         
     actual_port = get_free_port(port)
     
-    # Auto-enable share in known cloud environments
+    # Auto-enable share in known cloud environments (Kaggle/Jupyter)
     is_cloud = os.environ.get("KAGGLE_KERNEL_RUN_TYPE") or os.environ.get("JUPYTER_SERVER_URL")
     if is_cloud:
         share = True
         
-    print(f"Starting Gradio dashboard on port {actual_port}...")
+    print(f"Starting Gradio dashboard on port {actual_port} (share={share})...")
     try:
         app.launch(server_port=actual_port, share=share)
     except Exception as e:

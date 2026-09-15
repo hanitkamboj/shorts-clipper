@@ -52,18 +52,23 @@ def main():
 
 def _check_dependencies():
     """Check and install missing Python dependencies."""
-    required = ['gradio', 'pydantic']
+    required = ['gradio', 'pydantic', 'httpx', 'faster_whisper', 'yt_dlp']
     missing = []
     for pkg in required:
         try:
             __import__(pkg)
         except ImportError:
-            missing.append(pkg)
+            # Map module import name to pip package name
+            pip_name = pkg.replace('_', '-')
+            missing.append(pip_name)
     
     if missing:
         print(f'Installing missing dependencies: {missing}')
-        subprocess.check_call([sys.executable, '-m', 'pip', 'install', '-q'] + missing)
-        print('Dependencies installed.')
+        try:
+            subprocess.check_call([sys.executable, '-m', 'pip', 'install', '-q'] + missing)
+            print('Dependencies installed.')
+        except Exception as e:
+            print(f'Warning: pip install failed for {missing}: {e}')
 
 def _try_install_ffmpeg():
     """Try to install ffmpeg in Kaggle/Linux environments."""

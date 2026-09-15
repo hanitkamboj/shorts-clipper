@@ -168,11 +168,16 @@ def _cmd_doctor(args: argparse.Namespace, settings: Settings) -> int:
         cuda_status = "N/A"
     print(f"{'CUDA':<15} {cuda_status}")
     
+    whisper_status = "NOT_INSTALLED (Run: pip install faster-whisper)"
     try:
         import faster_whisper
-        whisper_status = "PASS"
+        whisper_status = "PASS (faster-whisper)"
     except Exception:
-        whisper_status = "PASS (Fallback Ready)"
+        try:
+            import whisper
+            whisper_status = "PASS (openai-whisper)"
+        except Exception:
+            pass
     print(f"{'Whisper':<15} {whisper_status}")
     
     print(f"{'Disk':<15} PASS")
