@@ -26,6 +26,20 @@ class JobStatus(StrEnum):
     DONE = "done"
     FAILED = "failed"
     CANCELLED = "cancelled"
+    # Extended pipeline statuses
+    QUEUED = "queued"
+    DOWNLOADING = "downloading"
+    TRANSCRIBING = "transcribing"
+    ANALYZING = "analyzing"
+    SCORING = "scoring"
+    RENDERING = "rendering"
+    THUMBNAIL = "thumbnail"
+    METADATA = "metadata"
+    SEO_REVIEW = "seo_review"
+    READY = "ready"
+    UPLOADING = "uploading"
+    SCHEDULED = "scheduled"
+    PUBLISHED = "published"
 
 
 @dataclass

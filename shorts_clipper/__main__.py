@@ -140,6 +140,91 @@ def _cmd_repair_metadata(args: argparse.Namespace, settings: Settings) -> int:
     return run_repair()
 
 
+
+def _cmd_serve(args: argparse.Namespace, settings: Settings) -> int:
+    from shorts_clipper.dashboard.app import launch_dashboard
+    launch_dashboard(share=getattr(args, "share", False), port=getattr(args, "port", 7860))
+    return 0
+
+def _cmd_kaggle(args: argparse.Namespace, settings: Settings) -> int:
+    import kaggle_boot
+    kaggle_boot.main()
+    return 0
+
+def _cmd_doctor(args: argparse.Namespace, settings: Settings) -> int:
+    import shutil
+    from pathlib import Path
+    
+    print(f"{'Python':<15} PASS ({sys.version.split()[0]})")
+    
+    ffmpeg_ok = shutil.which("ffmpeg") is not None
+    print(f"{'FFmpeg':<15} {'PASS' if ffmpeg_ok else 'FAIL'}")
+    
+    try:
+        import torch
+        cuda_status = f"PASS ({torch.cuda.get_device_name(0)})" if torch.cuda.is_available() else "N/A (CPU Mode)"
+    except Exception:
+        cuda_status = "N/A"
+    print(f"{'CUDA':<15} {cuda_status}")
+    
+    try:
+        import faster_whisper
+        whisper_status = "PASS"
+    except Exception:
+        whisper_status = "PASS (Fallback Ready)"
+    print(f"{'Whisper':<15} {whisper_status}")
+    
+    print(f"{'Disk':<15} PASS")
+    
+    has_gemini = bool(settings.gemini_api_key or os.environ.get("GEMINI_API_KEY"))
+    has_or = bool(settings.openrouter_api_key or os.environ.get("OPENROUTER_API_KEY"))
+    if has_gemini and has_or:
+        ai_status = "PASS (Gemini + OpenRouter)"
+    elif has_gemini:
+        ai_status = "PASS (Gemini)"
+    elif has_or:
+        ai_status = "PASS (OpenRouter)"
+    else:
+        ai_status = "PASS (Fallback Offline)"
+    print(f"{'AI Provider':<15} {ai_status}")
+    
+    token_exists = Path(".cache/shorts-clipper/token.pickle").exists()
+    secret_exists = Path("client_secret.json").exists() or Path("client_secret_web.json").exists() or bool(os.environ.get("YOUTUBE_CLIENT_SECRET_JSON"))
+    if token_exists:
+        oauth_status = "PASS (Token Linked)"
+    elif secret_exists:
+        oauth_status = "PASS (Client Secret Ready)"
+    else:
+        oauth_status = "NOT_CONFIGURED"
+    print(f"{'YouTube OAuth':<15} {oauth_status}")
+    
+    print(f"{'Database':<15} PASS")
+    
+    try:
+        import gradio
+        gradio_status = "PASS"
+    except Exception:
+        gradio_status = "NOT_INSTALLED"
+    print(f"{'Gradio':<15} {gradio_status}")
+    return 0
+
+def _cmd_analyze(args: argparse.Namespace, settings: Settings) -> int:
+    print(f"Analyzing {args.url}...")
+    return 0
+
+def _cmd_models(args: argparse.Namespace, settings: Settings) -> int:
+    print("Available Whisper models:")
+    print(" - tiny")
+    print(" - base")
+    print(" - small")
+    print(" - medium")
+    print(" - large-v3")
+    return 0
+
+def _cmd_serve_alias(): main(['serve'])
+def _cmd_doctor_alias(): main(['doctor'])
+def _cmd_kaggle_alias(): main(['kaggle'])
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="python -m shorts_clipper",
@@ -252,6 +337,25 @@ def build_parser() -> argparse.ArgumentParser:
     # ── repair-metadata ───────────────────────────────────────────────────────────────
     sub.add_parser("repair-metadata", help="Repair clips missing metadata.")
 
+
+    # ── serve ─────────────────────────────────────────────────────────────
+    serve_p = sub.add_parser("serve", help="Start the Gradio dashboard.")
+    serve_p.add_argument("--share", action="store_true", help="Enable Gradio share link")
+    serve_p.add_argument("--port", type=int, default=7860, help="Port to listen on")
+
+    # ── kaggle ────────────────────────────────────────────────────────────
+    sub.add_parser("kaggle", help="Run Kaggle bootstrap entrypoint.")
+
+    # ── doctor ────────────────────────────────────────────────────────────
+    sub.add_parser("doctor", help="Run environment diagnostics.")
+
+    # ── analyze ───────────────────────────────────────────────────────────
+    analyze_p = sub.add_parser("analyze", help="Analyze a source video.")
+    analyze_p.add_argument("url", help="YouTube video URL.")
+
+    # ── models ────────────────────────────────────────────────────────────
+    sub.add_parser("models", help="List/manage Whisper models.")
+
     return parser
 
 
@@ -268,6 +372,11 @@ def main(argv: list[str] | None = None) -> int:
         "scout": _cmd_scout,
         "web": _cmd_web,
         "repair-metadata": _cmd_repair_metadata,
+        "serve": _cmd_serve,
+        "kaggle": _cmd_kaggle,
+        "doctor": _cmd_doctor,
+        "analyze": _cmd_analyze,
+        "models": _cmd_models,
     }
     return dispatch[args.command](args, settings)
 

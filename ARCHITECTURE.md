@@ -1,54 +1,80 @@
-# System Architecture
+# System Architecture: AI Shorts Factory
 
-## High-level pipeline
+This document provides a comprehensive overview of the AI Shorts Factory architecture, detailing its subsystems, data flow, and security mechanisms.
 
+## Pipeline Flow Diagram
+
+```mermaid
+graph TD
+    A[Input Video/URL] --> B[Runtime Detection & Validation]
+    B --> C[Whisper Model Manager]
+    C -->|Transcript| D[Multi-Layer Scoring Engine]
+    D -->|Candidate Clips| E[Smart Cropping & Reframing]
+    E --> F[Dynamic Caption Engine]
+    F --> G[Thumbnail Engine]
+    G --> H[Durable Scheduler & Quota Manager]
+    H --> I[YouTube API / Publisher]
+    
+    subgraph Core Management
+        J[Gradio Dashboard]
+        K[Database Manager SQLite]
+        L[Batch Processor & Coordinator]
+        M[AI Provider Router]
+        N[SEO & Research Agent]
+    
+        J -->|Configures| L
+        L --> K
+        L --> B
+        M --> D
+        M --> N
+        N --> H
+    end
 ```
-Scout V2 → Editorial Engine → Download → Transcription → Rendering → Metadata → Publishing
-```
 
-## Core modules
+## Subsystems
 
-### Scout (`shorts_clipper/scout/`)
-Discovers trending YouTube videos by keyword or niche. Uses yt-dlp flat search (and optionally the YouTube Data API). Evaluates candidates across two stages:
-- **Stage A:** Metadata ranking by views, recency, engagement ratio, and channel diversity.
-- **Stage B:** Subtitle fetch and Gemini-based clip generation scoring for the top candidates.
-- **Semantic gating:** Gemini filters candidates for niche relevance before ranking.
-- **Counterfactual simulation:** Generates variant clips (e.g., trimmed pauses, alternate start points) and picks the best.
+### 1. Runtime Detection
+Verifies the execution environment (Local vs. Kaggle vs. Colab), ensuring proper hardware acceleration (CUDA/MPS) is available, and checking for essential binaries like `ffmpeg`.
 
-### Editorial Engine (`shorts_clipper/editorial/`)
-Deterministic segment selection using 8 plugin judges:
-1. Hook quality
-2. Silence/dead-air detection
-3. Length fitness
-4. Topical context coherence
-5. Emotional intensity
-6. Narrative arc
-7. Information density
-8. Question-answer structure
+### 2. Gradio Dashboard
+A reactive, web-based UI providing tabs for Source Management, Clip Settings, Quality Control, and Publishing schedules.
 
-A feature store pre-computes transcript metrics (speech rate, pause distribution, sentence boundaries). Each judge scores independently. Confidence aggregation combines scores with weighted profiles that vary by niche.
+### 3. Database Manager (SQLite)
+A local, serverless database for tracking video metadata, processing state, generated clips, and scheduled uploads. Ensures the system can recover gracefully from interruptions.
 
-If a single plugin crashes, it is disabled for that run and confidence math redistributes the weights.
+### 4. Whisper Model Manager
+Handles the loading, caching, and execution of OpenAI's Whisper models for highly accurate, timestamped transcriptions of input videos.
 
-### Rendering (`shorts_clipper/rendering/`)
-Two-pass FFmpeg pipeline:
-- Pass 1: Vertical crop (16:9 → 9:16, center crop).
-- Pass 2: Subtitle burn with ASS styling and configurable pacing multiplier.
+### 5. Multi-Layer Scoring Engine
+The "8-Judge Editorial Engine". It routes the transcript through specialized LLM prompts to evaluate multiple facets of the content:
+- **Hook Quality**: Does the first 3 seconds grab attention?
+- **Narrative Arc**: Is there a satisfying payoff?
+- **Visual Interest**: Are there dynamic scenes?
+- **Virality Potential**: Does it fit current trends?
 
-Transcription uses `faster-whisper` running locally (CPU or GPU) for word-level timestamps.
+### 6. Smart Cropping
+Uses facial detection and object tracking heuristics to reframe 16:9 landscape video into perfectly centered 9:16 vertical shorts, keeping the primary subject in frame.
 
-### Publishing (`shorts_clipper/publishers/`)
-Registry-based architecture. Ships with:
-- **YouTube:** OAuth2 with resumable chunked upload.
-- **Instagram:** Graph API using `IG_ACCESS_TOKEN` and `IG_ACCOUNT_ID`. Requires `PUBLIC_URL` or temp file hosting for media staging.
+### 7. Dynamic Caption Engine
+Generates styled, animated `.ass` or burned-in subtitles. It aligns text to the millisecond based on Whisper word-level timestamps.
 
-Adding a new platform requires implementing the `Publisher` interface and registering it. No pipeline changes needed.
+### 8. Thumbnail Engine
+Captures the most visually striking frame from the clip and applies stylistic overlays, text, and enhancements to maximize CTR (Click-Through Rate).
 
-### Job queue and API (`shorts_clipper/core/`, `shorts_clipper/api/`)
-- SQLite-backed job queue (`core/queue.py`) with a decoupled worker (`core/worker.py`).
-- FastAPI web dashboard (Vanguard Console) with SSE live logs.
+### 9. AI Provider Router
+Abstracts the LLM API calls, allowing the system to route requests to Google Gemini, OpenAI, or OpenRouter seamlessly depending on configuration and availability.
 
-## Data persistence
-- **Queue and jobs:** SQLite
-- **Cache:** SQLite for metadata, AI selections, and transcription artifacts
-- **Tokens:** Pickle file for YouTube OAuth2 credentials
+### 10. SEO & Research Agent
+Analyzes the final clip transcript and generates optimized titles, descriptions, and hashtags tailored for YouTube Shorts algorithms.
+
+### 11. Durable Scheduler & Quota Manager
+Maintains a queue of scheduled uploads. It respects YouTube API quota limits, automatically pausing and resuming uploads to prevent account suspension.
+
+### 12. Batch Processor & Coordinator
+Orchestrates the asynchronous processing of playlists or multiple URLs, managing worker threads and updating the SQLite state.
+
+## Security & Data Persistence
+
+- **Secrets Management**: All API keys and OAuth tokens are strictly read from environment variables or secure credential files (`client_secrets.json`). They are never hardcoded or logged.
+- **Data Persistence**: The SQLite database (`clipper.db`) acts as the single source of truth. If the process is killed, the Batch Processor reads from the database on next boot and resumes the exact pipeline step that failed.
+- **Artifact Cleanup**: Temporary processing files (raw audio, uncropped video) are securely deleted upon successful clip generation to conserve disk space.

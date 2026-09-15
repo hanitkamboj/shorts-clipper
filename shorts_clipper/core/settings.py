@@ -33,6 +33,8 @@ class Settings:
     gemini_api_key: str | None = None
     openai_api_key: str | None = None
     anthropic_api_key: str | None = None
+    openrouter_api_key: str | None = None
+    openrouter_model: str = "anthropic/claude-3.5-sonnet"
     youtube_api_key: str | None = None
     instagram_username: str | None = None
     instagram_password: str | None = None
@@ -114,6 +116,8 @@ class Settings:
             gemini_api_key=_env("GEMINI_API_KEY", file_values),
             openai_api_key=_env("OPENAI_API_KEY", file_values),
             anthropic_api_key=_env("ANTHROPIC_API_KEY", file_values),
+            openrouter_api_key=_env("OPENROUTER_API_KEY", file_values),
+            openrouter_model=_env("OPENROUTER_MODEL", file_values, "anthropic/claude-3.5-sonnet") or "anthropic/claude-3.5-sonnet",
             youtube_api_key=_env("YOUTUBE_API_KEY", file_values),
             instagram_username=_env("INSTAGRAM_USERNAME", file_values),
             instagram_password=_env("INSTAGRAM_PASSWORD", file_values),
